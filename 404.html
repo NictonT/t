@@ -61,36 +61,26 @@
         };
 
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log('Page loaded');
             await initialize();
         });
 
         async function initialize() {
             try {
                 const path = window.location.pathname;
-                console.log('Current path:', path);
-
-                // Updated regex to match /t/anouncments/1001 pattern (note the spelling)
                 const matches = path.match(/\/t\/anouncments\/(\d+)/i);
-                console.log('URL matches:', matches);
 
                 if (!matches) {
-                    console.log('No valid announcement path found');
                     showError();
                     return;
                 }
 
                 const id = matches[1];
-                console.log('Extracted ID:', id);
-
                 showLoading();
-                const announcement = await loadAnnouncementTitle(id);
                 
-                if (announcement && announcement.title) {
-                    console.log('Found title:', announcement.title);
-                    showTitle(announcement.title);
+                const title = await findAnnouncementTitle(id);
+                if (title) {
+                    showTitle(title);
                 } else {
-                    console.log('No matching announcement found');
                     showError();
                 }
             } catch (error) {
@@ -99,43 +89,36 @@
             }
         }
 
-        function showLoading() {
-            elements.loadingOverlay.style.display = 'flex';
-            elements.errorContainer.style.display = 'none';
-            elements.contentContainer.style.display = 'none';
-        }
-
-        function loadAnnouncementTitle(targetId) {
+        function findAnnouncementTitle(targetId) {
             return new Promise((resolve, reject) => {
-                console.log('Loading CSV data...');
+                let foundTitle = null;
+                
                 Papa.parse(CONFIG.csvUrl, {
                     download: true,
                     header: true,
-                    complete: (results) => {
-                        console.log('CSV data loaded');
-                        if (results.data.length > 0) {
-                            console.log('Sample record:', results.data[0]);
+                    step: function(row) {
+                        // Check if this row has the ID we're looking for
+                        const rowId = row.data.id || row.data.Id || row.data.ID;
+                        if (rowId && rowId.toString() === targetId.toString()) {
+                            foundTitle = row.data.title;
+                            // Abort parsing since we found our match
+                            this.abort();
                         }
-
-                        const announcement = results.data.find(item => {
-                            // Try different possible ID field names and handle string/number comparison
-                            return String(item.Id || item.id || item.ID || '').trim() === String(targetId).trim();
-                        });
-
-                        if (announcement) {
-                            console.log('Found matching announcement:', announcement);
-                        } else {
-                            console.log('No announcement found with ID:', targetId);
-                        }
-
-                        resolve(announcement || null);
                     },
-                    error: (error) => {
-                        console.error('CSV parse error:', error);
+                    complete: function() {
+                        resolve(foundTitle);
+                    },
+                    error: function(error) {
                         reject(error);
                     }
                 });
             });
+        }
+
+        function showLoading() {
+            elements.loadingOverlay.style.display = 'flex';
+            elements.errorContainer.style.display = 'none';
+            elements.contentContainer.style.display = 'none';
         }
 
         function showTitle(title) {
