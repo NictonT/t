@@ -49,10 +49,12 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <script>
+        // Configuration
         const CONFIG = {
             csvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRejUBQCi2XvKxDyrffK2jLZ3BCFBP0D2gCJ17CgChmvaf4GQ1-oACta3DzmOQhdOtwg57ExSVUWMGs/pub?output=csv'
         };
 
+        // DOM Elements
         const elements = {
             loadingOverlay: document.getElementById('loadingOverlay'),
             errorContainer: document.getElementById('errorContainer'),
@@ -60,69 +62,70 @@
             titleDisplay: document.getElementById('titleDisplay')
         };
 
+        // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log('Page loaded');
+            console.log('Page loaded, starting initialization...');
             await initialize();
         });
 
         async function initialize() {
             try {
+                // Get the current URL path
                 const path = window.location.pathname;
                 console.log('Current path:', path);
 
-                // Updated regex to match /t/Announcements/1001 pattern
-                const matches = path.match(/\/t\/Announcements\/(\d+)/i);
+                // Extract ID from URL
+                const matches = path.match(/\/announcements\/(\d+)/i);
                 console.log('URL matches:', matches);
 
                 if (!matches) {
-                    console.log('No valid announcement path found');
+                    console.log('No announcement ID found in URL');
                     showError();
                     return;
                 }
 
                 const id = matches[1];
-                console.log('Extracted ID:', id);
+                console.log('Found ID in URL:', id);
 
+                // Load data from CSV
                 const announcement = await loadAnnouncementTitle(id);
-                
+                console.log('Announcement data:', announcement);
+
                 if (announcement && announcement.title) {
-                    console.log('Found title:', announcement.title);
+                    console.log('Title found:', announcement.title);
                     showTitle(announcement.title);
                 } else {
-                    console.log('No matching announcement found');
+                    console.log('No announcement found for ID:', id);
                     showError();
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error during initialization:', error);
                 showError();
             }
         }
 
         function loadAnnouncementTitle(targetId) {
+            console.log('Loading announcement for ID:', targetId);
             return new Promise((resolve, reject) => {
                 Papa.parse(CONFIG.csvUrl, {
                     download: true,
                     header: true,
                     complete: (results) => {
-                        console.log('Raw CSV data:', results.data);
+                        console.log('CSV data loaded:', results.data);
                         
-                        // Log first item to see structure
-                        if (results.data.length > 0) {
-                            console.log('First item structure:', results.data[0]);
-                        }
-
-                        // Try different possible column names
+                        // Log all IDs found in CSV
+                        console.log('Available IDs in CSV:', results.data.map(item => item.id));
+                        
                         const announcement = results.data.find(item => {
-                            return (item.Id === targetId || 
-                                   item.id === targetId || 
-                                   item.ID === targetId);
+                            console.log('Checking item:', item);
+                            return item.id && item.id.toString() === targetId.toString();
                         });
-
+                        
                         console.log('Found announcement:', announcement);
                         resolve(announcement || null);
                     },
                     error: (error) => {
-                        console.error('CSV parse error:', error);
+                        console.error('Error parsing CSV:', error);
                         reject(error);
                     }
                 });
@@ -130,6 +133,7 @@
         }
 
         function showTitle(title) {
+            console.log('Displaying title:', title);
             elements.titleDisplay.textContent = title;
             elements.loadingOverlay.style.display = 'none';
             elements.errorContainer.style.display = 'none';
@@ -138,11 +142,16 @@
         }
 
         function showError() {
+            console.log('Showing error page');
             elements.loadingOverlay.style.display = 'none';
             elements.contentContainer.style.display = 'none';
             elements.errorContainer.style.display = 'block';
             document.title = '404 - Page Not Found';
         }
+
+        // Log initial page load
+        console.log('404 page script loaded');
+        console.log('Current URL:', window.location.href);
     </script>
 </body>
 </html>
