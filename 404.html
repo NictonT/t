@@ -60,6 +60,7 @@
             titleDisplay: document.getElementById('titleDisplay')
         };
 
+        // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
             await initialize();
         });
@@ -77,9 +78,9 @@
                 const id = matches[1];
                 showLoading();
                 
-                const title = await findAnnouncementTitle(id);
-                if (title) {
-                    showTitle(title);
+                const announcement = await loadAnnouncementTitle(id);
+                if (announcement) {
+                    showTitle(announcement.title);
                 } else {
                     showError();
                 }
@@ -89,29 +90,31 @@
             }
         }
 
-        function findAnnouncementTitle(targetId) {
+        function loadAnnouncementTitle(targetId) {
             return new Promise((resolve, reject) => {
-                let foundTitle = null;
-                
-                Papa.parse(CONFIG.csvUrl, {
-                    download: true,
-                    header: true,
-                    step: function(row) {
-                        // Check if this row has the ID we're looking for
-                        const rowId = row.data.id || row.data.Id || row.data.ID;
-                        if (rowId && rowId.toString() === targetId.toString()) {
-                            foundTitle = row.data.title;
-                            // Abort parsing since we found our match
-                            this.abort();
-                        }
-                    },
-                    complete: function() {
-                        resolve(foundTitle);
-                    },
-                    error: function(error) {
+                fetch(CONFIG.csvUrl)
+                    .then(response => response.text())
+                    .then(csvData => {
+                        const results = Papa.parse(csvData, {
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: function(results) {
+                                const announcement = results.data.find(row => {
+                                    const rowId = row.id || row.Id || row.ID;
+                                    return rowId && rowId.toString() === targetId.toString();
+                                });
+                                resolve(announcement || null);
+                            },
+                            error: function(error) {
+                                console.error('Parse error:', error);
+                                reject(error);
+                            }
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Fetch error:', error);
                         reject(error);
-                    }
-                });
+                    });
             });
         }
 
