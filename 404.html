@@ -63,50 +63,77 @@
         };
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', initialize);
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('Page loaded, starting initialization...');
+            await initialize();
+        });
 
         async function initialize() {
             try {
-                // Get the path and check if it matches the pattern
+                // Get the current URL path
                 const path = window.location.pathname;
+                console.log('Current path:', path);
+
+                // Extract ID from URL
                 const matches = path.match(/\/announcements\/(\d+)/i);
+                console.log('URL matches:', matches);
 
                 if (!matches) {
+                    console.log('No announcement ID found in URL');
                     showError();
                     return;
                 }
 
-                const id = matches[1]; // Get the ID from the URL
+                const id = matches[1];
+                console.log('Found ID in URL:', id);
+
+                // Load data from CSV
                 const announcement = await loadAnnouncementTitle(id);
-                
-                if (announcement) {
+                console.log('Announcement data:', announcement);
+
+                if (announcement && announcement.title) {
+                    console.log('Title found:', announcement.title);
                     showTitle(announcement.title);
                 } else {
+                    console.log('No announcement found for ID:', id);
                     showError();
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error during initialization:', error);
                 showError();
             }
         }
 
         function loadAnnouncementTitle(targetId) {
+            console.log('Loading announcement for ID:', targetId);
             return new Promise((resolve, reject) => {
                 Papa.parse(CONFIG.csvUrl, {
                     download: true,
                     header: true,
                     complete: (results) => {
-                        const announcement = results.data.find(item => 
-                            item.id && item.id.toString() === targetId.toString()
-                        );
+                        console.log('CSV data loaded:', results.data);
+                        
+                        // Log all IDs found in CSV
+                        console.log('Available IDs in CSV:', results.data.map(item => item.id));
+                        
+                        const announcement = results.data.find(item => {
+                            console.log('Checking item:', item);
+                            return item.id && item.id.toString() === targetId.toString();
+                        });
+                        
+                        console.log('Found announcement:', announcement);
                         resolve(announcement || null);
                     },
-                    error: reject
+                    error: (error) => {
+                        console.error('Error parsing CSV:', error);
+                        reject(error);
+                    }
                 });
             });
         }
 
         function showTitle(title) {
+            console.log('Displaying title:', title);
             elements.titleDisplay.textContent = title;
             elements.loadingOverlay.style.display = 'none';
             elements.errorContainer.style.display = 'none';
@@ -115,11 +142,16 @@
         }
 
         function showError() {
+            console.log('Showing error page');
             elements.loadingOverlay.style.display = 'none';
             elements.contentContainer.style.display = 'none';
             elements.errorContainer.style.display = 'block';
             document.title = '404 - Page Not Found';
         }
+
+        // Log initial page load
+        console.log('404 page script loaded');
+        console.log('Current URL:', window.location.href);
     </script>
 </body>
 </html>
