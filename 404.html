@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loading...</title>
+    <title>404 - Page Not Found</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <style>
@@ -36,6 +36,56 @@
             from { opacity: 0; }
             to { opacity: 1; }
         }
+
+        .announcement-content img {
+            max-width: 100%;
+            height: auto;
+            margin: 1rem 0;
+        }
+
+        .breadcrumb {
+            background-color: transparent;
+            padding: 0.5rem 0;
+        }
+
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+
+        .date-badge {
+            background-color: #f8f9fa;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        /* Custom 404 styles */
+        .error-page {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+
+        .error-code {
+            font-size: 6rem;
+            font-weight: 700;
+            color: #dc3545;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .error-message {
+            font-size: 1.5rem;
+            color: #6c757d;
+            margin-bottom: 2rem;
+        }
+
+        .back-button {
+            transition: all 0.3s ease;
+        }
+
+        .back-button:hover {
+            transform: translateX(-5px);
+        }
     </style>
 </head>
 <body>
@@ -51,14 +101,25 @@
 
     <!-- 404 Error Container -->
     <div id="errorContainer" class="error-container">
-        <div class="container min-vh-100 d-flex align-items-center justify-content-center">
-            <div class="text-center">
-                <h1 class="display-1 fw-bold">404</h1>
-                <h2 class="fs-4 mb-4">Page Not Found</h2>
-                <p class="text-muted mb-4">The page you're looking for doesn't exist or has been moved.</p>
-                <a href="/announcements" class="btn btn-primary">
-                    <i class="fas fa-home me-2"></i>Back to Announcements
-                </a>
+        <div class="error-page">
+            <div class="container min-vh-100 d-flex align-items-center justify-content-center">
+                <div class="text-center">
+                    <div class="error-code mb-4">404</div>
+                    <h2 class="error-message">Page Not Found</h2>
+                    <p class="text-muted mb-4">
+                        The page you're looking for doesn't exist or has been moved.
+                        <br>
+                        Please check the URL or try using the navigation.
+                    </p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="/" class="btn btn-outline-secondary back-button">
+                            <i class="fas fa-home me-2"></i>Go Home
+                        </a>
+                        <a href="/announcements" class="btn btn-primary back-button">
+                            <i class="fas fa-list me-2"></i>View Announcements
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -71,7 +132,7 @@
         // Configuration
         const CONFIG = {
             csvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRejUBQCi2XvKxDyrffK2jLZ3BCFBP0D2gCJ17CgChmvaf4GQ1-oACta3DzmOQhdOtwg57ExSVUWMGs/pub?output=csv',
-            announcementsPath: '/announcements/'
+            announcementsPath: 'announcements'
         };
 
         // DOM Elements
@@ -87,29 +148,29 @@
         async function initialize() {
             try {
                 const path = window.location.pathname;
+                const cleanPath = path.replace(/^\/|\/$/g, '');
+                const pathParts = cleanPath.split('/');
+
+                // Show loading immediately
+                showLoading(true);
                 
-                // Check if we're in the announcements path
-                if (!path.startsWith(CONFIG.announcementsPath)) {
-                    showError();
-                    return;
+                // Check if we're in the announcements section
+                if (pathParts.length >= 2 && pathParts[0].toLowerCase() === CONFIG.announcementsPath) {
+                    const announcementId = pathParts[1];
+                    console.log('Looking for announcement:', announcementId);
+                    
+                    if (announcementId) {
+                        const announcement = await loadAnnouncement(announcementId);
+                        if (announcement) {
+                            displayAnnouncement(announcement);
+                            return;
+                        }
+                    }
                 }
-
-                // Get announcement ID from URL
-                const id = path.replace(CONFIG.announcementsPath, '');
-                if (!id) {
-                    showError();
-                    return;
-                }
-
-                // Try to load the announcement
-                const announcement = await loadAnnouncement(id);
-                if (announcement) {
-                    displayAnnouncement(announcement);
-                } else {
-                    showError();
-                }
+                
+                showError();
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error during initialization:', error);
                 showError();
             }
         }
@@ -120,10 +181,26 @@
                     download: true,
                     header: true,
                     complete: (results) => {
-                        const announcement = results.data.find(item => item.Id === targetId);
-                        resolve(announcement || null);
+                        if (results.data && results.data.length > 0) {
+                            console.log('Checking announcement ID:', targetId);
+                            const announcement = results.data.find(item => 
+                                item.Id && item.Id.toString() === targetId.toString()
+                            );
+                            if (announcement) {
+                                console.log('Found announcement:', announcement);
+                            } else {
+                                console.log('No announcement found with ID:', targetId);
+                            }
+                            resolve(announcement || null);
+                        } else {
+                            console.log('No announcements data found');
+                            resolve(null);
+                        }
                     },
-                    error: reject
+                    error: (error) => {
+                        console.error('Error parsing CSV:', error);
+                        reject(error);
+                    }
                 });
             });
         }
@@ -136,26 +213,37 @@
                         <div class="col-12">
                             <nav aria-label="breadcrumb">
                                 <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="/announcements">Announcements</a></li>
-                                    <li class="breadcrumb-item active" aria-current="page">${escapeHtml(announcement.title)}</li>
+                                    <li class="breadcrumb-item">
+                                        <a href="/" class="text-decoration-none">
+                                            <i class="fas fa-home"></i> Home
+                                        </a>
+                                    </li>
+                                    <li class="breadcrumb-item">
+                                        <a href="/announcements" class="text-decoration-none">Announcements</a>
+                                    </li>
+                                    <li class="breadcrumb-item active" aria-current="page">
+                                        ${escapeHtml(announcement.title)}
+                                    </li>
                                 </ol>
                             </nav>
                             
                             <div class="card shadow">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-center mb-4">
-                                        <h1 class="card-title h2">${escapeHtml(announcement.title)}</h1>
-                                        <span class="text-muted">${date}</span>
+                                        <h1 class="card-title h2 mb-0">${escapeHtml(announcement.title)}</h1>
+                                        <span class="date-badge">
+                                            <i class="far fa-calendar-alt me-2"></i>${date}
+                                        </span>
                                     </div>
                                     
-                                    <div class="card-text">
+                                    <div class="card-text announcement-content">
                                         ${formatContent(announcement.content)}
                                     </div>
                                     
                                     ${announcement.attachments ? createAttachmentsSection(announcement.attachments) : ''}
                                     
                                     <div class="mt-4 pt-3 border-top">
-                                        <a href="/announcements" class="btn btn-outline-primary">
+                                        <a href="/announcements" class="btn btn-outline-primary back-button">
                                             <i class="fas fa-arrow-left me-2"></i>Back to Announcements
                                         </a>
                                     </div>
@@ -166,19 +254,39 @@
                 </div>
             `;
             
-            // Update page title
+            // Update page title and meta
             document.title = `${announcement.title} - Announcements`;
+            updateMetaTags(announcement);
             
             // Show announcement
             elements.announcementContainer.innerHTML = html;
             elements.loadingOverlay.style.display = 'none';
+            elements.errorContainer.style.display = 'none';
             elements.announcementContainer.style.display = 'block';
+        }
+
+        function updateMetaTags(announcement) {
+            // Update meta description
+            let metaDescription = document.querySelector('meta[name="description"]');
+            if (!metaDescription) {
+                metaDescription = document.createElement('meta');
+                metaDescription.setAttribute('name', 'description');
+                document.head.appendChild(metaDescription);
+            }
+            metaDescription.setAttribute('content', announcement.content?.slice(0, 160) || '');
         }
 
         function showError() {
             document.title = '404 - Page Not Found';
             elements.loadingOverlay.style.display = 'none';
+            elements.announcementContainer.style.display = 'none';
             elements.errorContainer.style.display = 'block';
+        }
+
+        function showLoading(show) {
+            elements.loadingOverlay.style.display = show ? 'flex' : 'none';
+            elements.errorContainer.style.display = 'none';
+            elements.announcementContainer.style.display = 'none';
         }
 
         function formatContent(content) {
@@ -200,9 +308,12 @@
                 .map(attachment => attachment.trim())
                 .filter(attachment => attachment.length > 0)
                 .map(attachment => `
-                    <li class="list-group-item">
-                        <i class="fas fa-paperclip me-2"></i>
-                        <a href="${escapeHtml(attachment)}" target="_blank" rel="noopener noreferrer">
+                    <li class="list-group-item d-flex align-items-center">
+                        <i class="fas fa-paperclip me-2 text-muted"></i>
+                        <a href="${escapeHtml(attachment)}" 
+                           target="_blank" 
+                           rel="noopener noreferrer"
+                           class="text-decoration-none">
                             ${escapeHtml(getFileName(attachment))}
                         </a>
                     </li>
@@ -211,7 +322,7 @@
             
             return attachmentsList ? `
                 <div class="mt-4">
-                    <h5>Attachments</h5>
+                    <h5><i class="fas fa-file-alt me-2"></i>Attachments</h5>
                     <ul class="list-group list-group-flush">
                         ${attachmentsList}
                     </ul>
