@@ -49,12 +49,10 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <script>
-        // Configuration
         const CONFIG = {
             csvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRejUBQCi2XvKxDyrffK2jLZ3BCFBP0D2gCJ17CgChmvaf4GQ1-oACta3DzmOQhdOtwg57ExSVUWMGs/pub?output=csv'
         };
 
-        // DOM Elements
         const elements = {
             loadingOverlay: document.getElementById('loadingOverlay'),
             errorContainer: document.getElementById('errorContainer'),
@@ -62,70 +60,78 @@
             titleDisplay: document.getElementById('titleDisplay')
         };
 
-        // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log('Page loaded, starting initialization...');
+            console.log('Page loaded');
             await initialize();
         });
 
         async function initialize() {
             try {
-                // Get the current URL path
                 const path = window.location.pathname;
                 console.log('Current path:', path);
 
-                // Extract ID from URL
-                const matches = path.match(/\/announcements\/(\d+)/i);
+                // Updated regex to match /t/anouncments/1001 pattern (note the spelling)
+                const matches = path.match(/\/t\/anouncments\/(\d+)/i);
                 console.log('URL matches:', matches);
 
                 if (!matches) {
-                    console.log('No announcement ID found in URL');
+                    console.log('No valid announcement path found');
                     showError();
                     return;
                 }
 
                 const id = matches[1];
-                console.log('Found ID in URL:', id);
+                console.log('Extracted ID:', id);
 
-                // Load data from CSV
+                showLoading();
                 const announcement = await loadAnnouncementTitle(id);
-                console.log('Announcement data:', announcement);
-
+                
                 if (announcement && announcement.title) {
-                    console.log('Title found:', announcement.title);
+                    console.log('Found title:', announcement.title);
                     showTitle(announcement.title);
                 } else {
-                    console.log('No announcement found for ID:', id);
+                    console.log('No matching announcement found');
                     showError();
                 }
             } catch (error) {
-                console.error('Error during initialization:', error);
+                console.error('Error:', error);
                 showError();
             }
         }
 
+        function showLoading() {
+            elements.loadingOverlay.style.display = 'flex';
+            elements.errorContainer.style.display = 'none';
+            elements.contentContainer.style.display = 'none';
+        }
+
         function loadAnnouncementTitle(targetId) {
-            console.log('Loading announcement for ID:', targetId);
             return new Promise((resolve, reject) => {
+                console.log('Loading CSV data...');
                 Papa.parse(CONFIG.csvUrl, {
                     download: true,
                     header: true,
                     complete: (results) => {
-                        console.log('CSV data loaded:', results.data);
-                        
-                        // Log all IDs found in CSV
-                        console.log('Available IDs in CSV:', results.data.map(item => item.id));
-                        
+                        console.log('CSV data loaded');
+                        if (results.data.length > 0) {
+                            console.log('Sample record:', results.data[0]);
+                        }
+
                         const announcement = results.data.find(item => {
-                            console.log('Checking item:', item);
-                            return item.id && item.id.toString() === targetId.toString();
+                            // Try different possible ID field names and handle string/number comparison
+                            return String(item.Id || item.id || item.ID || '').trim() === String(targetId).trim();
                         });
-                        
-                        console.log('Found announcement:', announcement);
+
+                        if (announcement) {
+                            console.log('Found matching announcement:', announcement);
+                        } else {
+                            console.log('No announcement found with ID:', targetId);
+                        }
+
                         resolve(announcement || null);
                     },
                     error: (error) => {
-                        console.error('Error parsing CSV:', error);
+                        console.error('CSV parse error:', error);
                         reject(error);
                     }
                 });
@@ -133,7 +139,6 @@
         }
 
         function showTitle(title) {
-            console.log('Displaying title:', title);
             elements.titleDisplay.textContent = title;
             elements.loadingOverlay.style.display = 'none';
             elements.errorContainer.style.display = 'none';
@@ -142,16 +147,11 @@
         }
 
         function showError() {
-            console.log('Showing error page');
             elements.loadingOverlay.style.display = 'none';
             elements.contentContainer.style.display = 'none';
             elements.errorContainer.style.display = 'block';
             document.title = '404 - Page Not Found';
         }
-
-        // Log initial page load
-        console.log('404 page script loaded');
-        console.log('Current URL:', window.location.href);
     </script>
 </body>
 </html>
